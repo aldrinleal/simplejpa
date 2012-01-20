@@ -5,7 +5,6 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URL;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -45,6 +44,8 @@ import com.spaceprogram.simplejpa.cache.CacheFactory;
 import com.spaceprogram.simplejpa.cache.NoopCache;
 import com.spaceprogram.simplejpa.cache.NoopCacheFactory;
 import com.spaceprogram.simplejpa.stats.OpStats;
+
+import static org.apache.commons.lang.StringUtils.isNotBlank;
 
 /**
  * User: treeder Date: Feb 10, 2008 Time: 6:20:23 PM
@@ -248,8 +249,17 @@ public class EntityManagerFactoryImpl implements EntityManagerFactory {
      */
     public static EntityManagerFactoryImpl newInstanceWithClassNames(String persistenceUnitName,
             Map<String, String> props, String... classNames) throws PersistenceException {
-        return new EntityManagerFactoryImpl(persistenceUnitName, props, null, new TreeSet<String>(
-                Arrays.asList(classNames)));
+        return new EntityManagerFactoryImpl(persistenceUnitName, props, null, getClasses(classNames));
+    }
+
+    private static Set<String> getClasses(String... classNames) {
+        TreeSet<String> set = new TreeSet<String>();
+
+        for (String className : classNames)
+            if (isNotBlank(className))
+                set.add(className);
+
+        return set;
     }
 
     private static Set<String> getLibsToScan(Set<String> classNames) throws PersistenceException {
