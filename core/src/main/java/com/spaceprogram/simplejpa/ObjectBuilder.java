@@ -1,13 +1,20 @@
 package com.spaceprogram.simplejpa;
 
-import com.amazonaws.services.simpledb.model.Attribute;
-import com.spaceprogram.simplejpa.query.QueryImpl;
-import net.sf.cglib.proxy.Enhancer;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+import java.util.logging.Logger;
 
 import javax.persistence.EnumType;
 import javax.persistence.PersistenceException;
-import java.util.*;
-import java.util.logging.Logger;
+
+import net.sf.cglib.proxy.Enhancer;
+
+import com.amazonaws.services.simpledb.model.Attribute;
+import com.spaceprogram.simplejpa.query.QueryImpl;
 
 /**
  * User: treeder
@@ -78,7 +85,7 @@ public class ObjectBuilder {
 //                    Class retType = field.getReturnType();
                     // todo: assuming List for now, handle other collection types
                     field.setProperty(newInstance, lazyList);
-                } else if (field.isLob()) {
+                } else if (field.isLob() || field.isJsonLob()) {
                     // handled in Proxy
                     String lobKeyAttributeName = field.getColumnName();
                     String lobKeyVal = getValueToSet(atts, lobKeyAttributeName, columnName);
