@@ -27,6 +27,8 @@ import javax.persistence.PreUpdate;
 
 import net.sf.cglib.proxy.Factory;
 
+import org.codehaus.jackson.map.ObjectMapper;
+
 import com.amazonaws.AmazonClientException;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.simpledb.model.Attribute;
@@ -197,7 +199,22 @@ public class Save implements Callable {
                         }
                     }
                 }
+            } else if (field.isJsonLob()) {
+                AmazonS3 s3 = em.getS3Service();
 
+                long start3 = System.currentTimeMillis();
+                String bucketName = em.getS3BucketName();
+                String s3ObjectId = id + "-" + field.getFieldName();
+
+                byte[] contentBytes = getJsonPayload(ob);
+
+                InputStream input = new ByteArrayInputStream(contentBytes);
+
+                s3.putObject(bucketName, s3ObjectId, input, null);
+
+                em.statsS3Put(System.currentTimeMillis() - start3);
+                logger.finer("setting lobkeyattribute=" + columnName + " - " + s3ObjectId);
+                attsToPut.add(new ReplaceableAttribute(columnName, s3ObjectId, true));
             } else if (field.isLob()) {
                 // store in s3
                 AmazonS3 s3 = null;
@@ -306,6 +323,16 @@ public class Save implements Callable {
         em.invokeEntityListener(o, newObject ? PostPersist.class : PostUpdate.class);
         if (logger.isLoggable(Level.FINE))
             logger.fine("persistOnly time=" + (System.currentTimeMillis() - start));
+    }
+
+    private byte[] getJsonPayload(Object ob) {
+        ObjectMapper mapper = em.getObjectMapper();
+
+        try {
+            return mapper.writeValueAsBytes(ob);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
     }
 
     static String getEnumValue(PersistentProperty field, Object ob) {

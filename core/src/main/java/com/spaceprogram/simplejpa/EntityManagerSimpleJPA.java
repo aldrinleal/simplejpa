@@ -2,13 +2,19 @@ package com.spaceprogram.simplejpa;
 
 import java.io.BufferedInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.ObjectInputStream;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.math.BigDecimal;
 import java.text.ParseException;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.Date;
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
@@ -16,7 +22,19 @@ import java.util.concurrent.Future;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import javax.persistence.*;
+import javax.persistence.EntityTransaction;
+import javax.persistence.FlushModeType;
+import javax.persistence.LockModeType;
+import javax.persistence.PersistenceException;
+import javax.persistence.Query;
+
+import net.sf.cglib.proxy.Factory;
+
+import org.apache.commons.lang.NotImplementedException;
+import org.apache.commons.lang.StringUtils;
+import org.codehaus.jackson.JsonParseException;
+import org.codehaus.jackson.map.JsonMappingException;
+import org.codehaus.jackson.map.ObjectMapper;
 
 import com.amazonaws.AmazonClientException;
 import com.amazonaws.services.s3.AmazonS3;
@@ -41,11 +59,6 @@ import com.spaceprogram.simplejpa.stats.OpStats;
 import com.spaceprogram.simplejpa.util.AmazonSimpleDBUtil;
 import com.spaceprogram.simplejpa.util.ConcurrentRetriever;
 
-import net.sf.cglib.proxy.Factory;
-
-import org.apache.commons.lang.NotImplementedException;
-import org.apache.commons.lang.StringUtils;
-
 /**
  * User: treeder Date: Feb 8, 2008 Time: 12:59:38 PM
  * 
@@ -68,6 +81,8 @@ public class EntityManagerSimpleJPA implements SimpleEntityManager, DatabaseMana
     public static final BigDecimal OFFSET_VALUE = new BigDecimal(Long.MIN_VALUE).negate();
     private OpStats lastOpStats = new OpStats(); // todo: thread local this
     private OpStats totalOpStats = new OpStats();
+
+    private ObjectMapper objectMapper;
 
     EntityManagerSimpleJPA(EntityManagerFactoryImpl factory, boolean sessionless) {
         this.factory = factory;
@@ -739,5 +754,41 @@ public class EntityManagerSimpleJPA implements SimpleEntityManager, DatabaseMana
             newField = forNewField.newInstance(val);
         }
         return (T)newField;
+    }
+
+    public ObjectMapper getObjectMapper() {
+        if (null == this.objectMapper) {
+            this.objectMapper = createObjectMapper();
+        }
+
+        return objectMapper;
+    }
+
+    private ObjectMapper createObjectMapper() {
+        return new ObjectMapper();
+    }
+
+    @SuppressWarnings("unchecked")
+    public <T> T getJsonObjectFromS3(String idOnS3, Class<T> retType) throws JsonParseException, JsonMappingException,
+            IOException {
+        ObjectMapper objectMapper = getObjectMapper();
+
+        long start = System.currentTimeMillis();
+        AmazonS3 s3 = factory.getS3Service();
+        S3Object s3o = s3.getObject(factory.getS3BucketName(), idOnS3);
+        logger.fine("got s3object=" + s3o);
+        T ret = null;
+        InputStream objectContent = null;
+        try {
+            objectContent = s3o.getObjectContent();
+
+            ret = objectMapper.readValue(objectContent, retType);
+        } finally {
+            objectContent.close();
+        }
+
+        statsS3Get(System.currentTimeMillis() - start);
+
+        return ret;
     }
 }

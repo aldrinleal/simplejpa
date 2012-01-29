@@ -1,10 +1,27 @@
 package com.spaceprogram.simplejpa;
 
-import org.apache.commons.lang.StringUtils;
+import java.lang.reflect.AnnotatedElement;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
+import java.lang.reflect.ParameterizedType;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.List;
 
-import javax.persistence.*;
-import java.lang.reflect.*;
-import java.util.*;
+import javax.persistence.Column;
+import javax.persistence.EnumType;
+import javax.persistence.Enumerated;
+import javax.persistence.Id;
+import javax.persistence.Lob;
+import javax.persistence.ManyToMany;
+import javax.persistence.ManyToOne;
+import javax.persistence.OneToMany;
+import javax.persistence.OneToOne;
+import javax.persistence.OrderBy;
+import javax.persistence.Version;
+
+import org.apache.commons.lang.StringUtils;
 
 /**
  * Kerry Wright
@@ -55,6 +72,10 @@ public abstract class PersistentProperty {
     public abstract Method getSetter();
 
     public abstract String getFieldName();
+
+    public boolean isJsonLob() {
+        return element.isAnnotationPresent(JsonLob.class);
+    }
 
     public boolean isLob() {
         return element.isAnnotationPresent(Lob.class);

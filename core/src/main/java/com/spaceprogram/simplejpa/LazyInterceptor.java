@@ -1,22 +1,25 @@
 package com.spaceprogram.simplejpa;
 
+import java.io.IOException;
+import java.io.Serializable;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Set;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+
+import javax.persistence.PersistenceException;
+
 import net.sf.cglib.asm.Type;
 import net.sf.cglib.core.Signature;
 import net.sf.cglib.proxy.MethodInterceptor;
 import net.sf.cglib.proxy.MethodProxy;
 
 import com.amazonaws.AmazonClientException;
-
-import javax.persistence.Lob;
-import javax.persistence.ManyToOne;
-import javax.persistence.PersistenceException;
-import java.io.IOException;
-import java.io.Serializable;
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
-import java.util.*;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 /**
  * Lazy loader for second class objects that need it.
@@ -119,6 +122,22 @@ public class LazyInterceptor implements MethodInterceptor, Serializable {
                 logger.finer("intercepting lob. key==" + lobKey);
                 Class retType = method.getReturnType();
                 Object toSet = em.getObjectFromS3(lobKey.iterator().next());
+                // System.out.println("toset=" + toSet);
+                String setterName = em.getSetterNameFromGetter(method);
+                Method setter = obj.getClass().getMethod(setterName, retType);
+                setter.invoke(obj, toSet);
+            }
+        } else if (property.isJsonLob()) {
+            if (foreignKeys != null) {
+                // TODO add support for multivalued LOB keys
+                Set<String> lobKey = foreignKeys.get(NamingHelper.attributeName(method));
+                if (lobKey == null || lobKey.isEmpty()) {
+                    return true;
+                }
+                checkEntityManager();
+                logger.finer("intercepting lob. key==" + lobKey);
+                Class retType = method.getReturnType();
+                Object toSet = em.getJsonObjectFromS3(lobKey.iterator().next(), retType);
                 // System.out.println("toset=" + toSet);
                 String setterName = em.getSetterNameFromGetter(method);
                 Method setter = obj.getClass().getMethod(setterName, retType);
