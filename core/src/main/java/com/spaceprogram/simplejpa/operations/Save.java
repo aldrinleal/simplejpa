@@ -204,7 +204,10 @@ public class Save implements Callable {
 
                 long start3 = System.currentTimeMillis();
                 String bucketName = em.getS3BucketName();
-                String s3ObjectId = id + "-" + field.getFieldName();
+                String classRef = ai.getRootClass().getName().replace('.', '/');
+                long lobTimestamp = System.currentTimeMillis() / 1000;
+                String s3ObjectId = String.format("%s/%s/%08X.json", classRef, id + "-" + field.getFieldName(),
+                        lobTimestamp);
 
                 byte[] contentBytes = getJsonPayload(ob);
 
